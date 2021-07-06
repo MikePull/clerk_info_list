@@ -14,7 +14,7 @@ interface IVote {
     name: string,
     description: string
 }
-const API_KEY = process.env.API_KEY
+const API_KEY = process.env.API_KEY /// Edit this line.
 
 async function getMembers(page: number) { 
     const response = await fetch(`https://clerkapi.azure-api.net/Members/v1/?key=${API_KEY}&$skip=${page}`); 
