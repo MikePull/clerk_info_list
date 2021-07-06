@@ -9,6 +9,7 @@ interface IMember {
 }
 
 interface IVote {
+    _id: string,
     members?: any, // diff schema
     name: string,
     description: string
@@ -20,32 +21,29 @@ async function getMembers(page: number) {
     const response = await fetch(`https://clerkapi.azure-api.net/Members/v1/?key=${API_KEY}&$skip=${page}`); 
     return response.json();
 }
-async function getVotes(page?: number, withMembers?: boolean, amount?: number) {
+async function getVotes(page: number, amount?: number) {
     // Unsure on the amount of votes so doing the first 100 or an arbitrary amount. 
     // The members would have the voting data if the member page fetched intersects with the vote pages fetched
-    // fetch all voting data in a loop
+    // fetch all voting data in a loop (954 entries)
 
-    if (withMembers && amount) {
-        let memberVotes = {}
-        for (let i = 0; i < amount; i + 10) {
-            await fetch(`https://clerkapi.azure-api.net/Votes/v1/?$filter=superEvent/superEvent/congressNum%20eq%20%27116%27&key=${API_KEY}&${i}`)
-                .then(response => response.json())
-                .then(json => {
-                    json.results.map(({members, name}: {members: Array<object>, name: string}) => {
-                        members.forEach(member => {
-                            memberVotes = {
-                                [name]: [member.name]
-                                ...memberVotes    
-                            }
-                        })
-                    })
-                })        
-        }
-        return await memberVotes
-    }
-
-    const response = await fetch(`https://clerkapi.azure-api.net/Votes/v1/?$filter=superEvent/superEvent/congressNum%20eq%20%27116%27&key=${API_KEY}&${page}`)
+    const response = await fetch(`https://clerkapi.azure-api.net/Votes/v1/?$filter=superEvent/superEvent/congressNum%20eq%20%27116%27&key=${API_KEY}&$skip=${page}`)
     return response.json();
+}
+async function loadAllVotesByMember() {
+    let memberVotes: any = {}
+    for (let i = 0; i < 960; i += 10) {
+        console.log(i)
+        await getVotes(i)
+            .then(json => {
+                json.results.forEach(({members, name, _id}: {members: Array<object>, name: string, _id: string}) => {
+                    members.forEach((member: any) => {
+                        memberVotes[member.familyName] = memberVotes[member.familyName] 
+                            ? [...memberVotes[member.familyName], {name, _id}]
+                            : [{name, _id}]
+                    })
+                })
+            })
+    }
 }
 
 
@@ -53,41 +51,53 @@ async function getVotes(page?: number, withMembers?: boolean, amount?: number) {
 
 export default function MemberList() { 
     const [memberData, setMemberData] = useState([]); 
-    const [memberPage, setMemberPage] = useState(1)
+    const [memberPage, setMemberPage] = useState(0)
 
-    const [voteData, setVoteData] = useState<IVote[]>([])
-    const [votePage, setVotePage] = useState(1)
+    const [voteData, setVoteData] = useState<IVote[] | any>([])
+    const [votePage, setVotePage] = useState(0)
 
     useEffect(()=> {
-        getMembers(memberPage).then(memberData => setMemberData(memberData.results)).then(() => console.log(memberData));
-        
+        getMembers(memberPage).then(memberData => setMemberData(memberData.results)).then(() => console.log(memberData)).catch(e => console.log(encodeURI));
     }, [memberPage]);
 
     useEffect(() => {
-        getVotes()
-            .then(voteData => voteData.results)
-            .then(votes => votes.map((vote: IVote) => setVoteData([...voteData, {name: vote.name, description: vote.description}])))
+        getVotes(votePage)
+            .then(voteData => setVoteData(voteData.results))
+            .catch((e) => console.log(e))
     }, [votePage])
 
+    // useEffect(() => {
+    //     loadAllVotesByMember()
+    // }, [])
+    
+    // ^Need to optimize, takes 70 sec
+
     return (
-        <Contiainer>
+        <Container>
             <GridContainer>
                 {memberData.map((m: IMember) => <Member key={m._id} name={m.officialName}/>)}
-                <div>
-                    { page > 2 && <div onClick={() => setPage(page - 1)}> Previous </div> }
-                    <div onClick={() => setPage(page + 1)}> Next </div>
-                </div>
             </GridContainer>
-
+            <PaginationBtns>
+                { memberPage > 10 && <div onClick={() => setMemberPage(memberPage - 10)}> Previous </div> }
+                <span>Page {Math.floor(memberPage / 10)}</span>
+                <div onClick={() => setMemberPage(memberPage + 10)}> Next </div>
+            </PaginationBtns>
             <GridContainer>
-                {voteData.map((vote: IVote) => <div key={i}>{vote.name} <br /> {vote.description} </div>)}
+                {voteData.map((vote: IVote, idx: number) => <div key={idx}>{vote.name} <br /> {vote.description} {vote._id} </div>)}
             </GridContainer>
-         </Container>
-); }
+            <PaginationBtns>
+                    { votePage > 10 && <div onClick={() => setVotePage(votePage - 10)}> Previous </div> }
+                     <span> Page {Math.floor(votePage / 10)}</span>
+                    <div onClick={() => setVotePage(votePage + 10)}> Next </div>
+            </PaginationBtns>
+        </Container>
+    );
+}
 
 const GridContainer = styled.div`
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    border: 1px solid black;
 `
 
 const Container = styled.div`
@@ -97,5 +107,5 @@ const Container = styled.div`
 `
 
 const PaginationBtns = styled.div`
-
+    dsiplay: flex;
 `
