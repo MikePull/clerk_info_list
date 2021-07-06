@@ -14,7 +14,7 @@ interface IVote {
     name: string,
     description: string
 }
-const API_KEY = ""
+const API_KEY = process.env.API_KEY
 
 async function getMembers(page: number) { 
     const response = await fetch(`https://clerkapi.azure-api.net/Members/v1/?key=${API_KEY}&$skip=${page}`); 
@@ -51,7 +51,9 @@ export default function MemberList() {
     const [votePage, setVotePage] = useState(0)
 
     useEffect(()=> {
-        getMembers(memberPage).then(memberData => setMemberData(memberData.results)).then(() => console.log(memberData)).catch(e => console.log(encodeURI));
+        getMembers(memberPage)
+            .then(memberData => setMemberData(memberData.results))
+            .catch(e => console.log(e));
     }, [memberPage]);
 
     useEffect(() => {
