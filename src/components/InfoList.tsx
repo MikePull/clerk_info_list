@@ -8,8 +8,8 @@ interface IMember {
     active: string
 }
 
-interface IVote<T> {
-    members: Array<T>,
+interface IVote {
+    members?: any, // diff schema
     name: string,
     description: string
 }
@@ -55,24 +55,47 @@ export default function MemberList() {
     const [memberData, setMemberData] = useState([]); 
     const [memberPage, setMemberPage] = useState(1)
 
-    const [voteData, setVoteData] = useState([])
+    const [voteData, setVoteData] = useState<IVote[]>([])
     const [votePage, setVotePage] = useState(1)
 
     useEffect(()=> {
-        getMembers(page).then(memberData => setMemberData(memberData.results)).then(() => console.log(memberData));
-        getVotes().then(voteData => console.log(voteData.results))
-    }, [page]);
+        getMembers(memberPage).then(memberData => setMemberData(memberData.results)).then(() => console.log(memberData));
+        
+    }, [memberPage]);
+
+    useEffect(() => {
+        getVotes()
+            .then(voteData => voteData.results)
+            .then(votes => votes.map((vote: IVote) => setVoteData([...voteData, {name: vote.name, description: vote.description}])))
+    }, [votePage])
+
     return (
-        <div>
-            {memberData.map((m: IMember) => <Member key={m._id} name={m.officialName}/>)}
-            <div>
-                { page > 2 && <div onClick={() => setPage(page - 1)}> Previous </div> }
-                <div onClick={() => setPage(page + 1)}> Next </div>
-            </div>
-         </div>
+        <Contiainer>
+            <GridContainer>
+                {memberData.map((m: IMember) => <Member key={m._id} name={m.officialName}/>)}
+                <div>
+                    { page > 2 && <div onClick={() => setPage(page - 1)}> Previous </div> }
+                    <div onClick={() => setPage(page + 1)}> Next </div>
+                </div>
+            </GridContainer>
+
+            <GridContainer>
+                {voteData.map((vote: IVote) => <div key={i}>{vote.name} <br /> {vote.description} </div>)}
+            </GridContainer>
+         </Container>
 ); }
 
-const Container = styled.div`
+const GridContainer = styled.div`
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+`
+
+const Container = styled.div`
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+`
+
+const PaginationBtns = styled.div`
+
 `
