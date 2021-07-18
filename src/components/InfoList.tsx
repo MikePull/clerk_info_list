@@ -2,9 +2,10 @@ import React, {useEffect, useState } from 'react';
 import styled from "styled-components"
 
 interface IMember {
-    _id: string
+    _id: string,
     officialName: string,
-    active: string
+    active: string,
+    congresses?: any
 }
 
 interface IVote {
@@ -16,6 +17,7 @@ interface IVote {
 const API_KEY = "" /// Edit this line.
 
 async function getMembers(page: number) { 
+    console.log("fetching")
     const response = await fetch(`https://clerkapi.azure-api.net/Members/v1/?key=${API_KEY}&$skip=${page}`); 
     return response.json();
 }
@@ -24,6 +26,36 @@ async function getVotes(page: number, amount?: number) {
     const response = await fetch(`https://clerkapi.azure-api.net/Votes/v1/?$filter=superEvent/superEvent/congressNum%20eq%20%27116%27&key=${API_KEY}&$skip=${page}`)
     return response.json();
 }
+
+async function loadAllMembers() {
+    let finished = false
+    let i = 0;
+    let members: any[] = []
+
+    while (!finished && i <= 70) {
+        await getMembers(i)
+                .then(json => {
+                    members.push(
+                        json.results.map((member: any) => (
+                            {
+                                officialName: member.officialName,
+                                active: member.active, 
+                                congresses: member.congresses,
+                            }
+                        ))
+                    )
+                })
+
+                //.then(() => console.log(i + "<-----------", members))
+                .catch(e => finished = true)
+        
+        i+=10
+    }
+    return await members
+
+}
+
+
 async function loadAllVotesByMember() {
     let memberVotes: any = {}
     for (let i = 0; i < 960; i += 10) {
@@ -43,17 +75,39 @@ async function loadAllVotesByMember() {
 }
 
 export default function MemberList() { 
-    const [memberData, setMemberData] = useState([]); 
+
+    const [memberLoad, setMemberLoad] = useState<any>([]);
+    const [finishedLoading, setFinishedLoading] = useState(false)
+
+    const [memberData, setMemberData] = useState<any>([]);
     const [memberPage, setMemberPage] = useState(0)
 
     const [voteData, setVoteData] = useState<IVote[] | any>([])
     const [votePage, setVotePage] = useState(0)
 
-    useEffect(()=> {
-        getMembers(memberPage)
-            .then(memberData => setMemberData(memberData.results))
+    const [showAllMembers, setShowAllMembers] = useState(false)
+
+    const filterByQuery = (query: string, type: string) => {
+        
+    }
+
+    useEffect(() => {
+        if (showAllMembers) {
+            loadAllMembers()
+            .then(members => {
+                for (let i in members) {
+                    setMemberData([...members[i], ...memberData])
+                }
+            })
+            console.log(typeof memberData)
+        } else {
+            getMembers(memberPage)
+            .then(memberData => { 
+                setMemberData(memberData.results) 
+            })
             .catch(e => console.log(e));
-    }, [memberPage]);
+        }
+    }, [memberPage, showAllMembers]);
 
     useEffect(() => {
         getVotes(votePage)
@@ -61,18 +115,24 @@ export default function MemberList() {
             .catch((e) => console.log(e))
     }, [votePage])
 
-    // useEffect(() => {
-    //     loadAllVotesByMember()
-    // }, [])
+     useEffect(() => {
+         
+     }, [])
+
+     useEffect(() => {
+ //      console.log(memberData, "========", memberData[10])
+
+    }, [memberData])
 
     // ^Need to optimize, takes 70 sec
 
     return (
         <FlexContainer>
             <MemberContainer>
-                {memberData.map((m: IMember) => <div key={m._id}>{m.officialName}</div>)}
+                { memberData.map((m: IMember) => <div key={m._id}>{m.officialName}</div>) }
             </MemberContainer>
             <PaginationBtns>
+                <div onClick={() => setShowAllMembers(!showAllMembers)}> { !showAllMembers ? "Show All" : "Show by Page" } </div>
                 { memberPage > 10 && <div onClick={() => setMemberPage(memberPage - 10)}> Previous </div> }
                 <span>Page {Math.floor(memberPage / 10)}</span>
                 <div onClick={() => setMemberPage(memberPage + 10)}> Next </div>
@@ -161,9 +221,12 @@ const PaginationBtns = styled.div`
     justify-content: space-between;
     & > * {
         
-        border: 1px solid black;
+        box-shadow: 0 19px 38px rgba(0,0,0,0.30), 0 15px 12px rgba(0,0,0,0.22);
         width: fit-content;
-        padding: .5em;
+        padding: .7em;
+        background: #BCAC9B;
+        color: #2A3D45;
+        border-radius: 10px;
     }
     & > * {
         cursor: pointer;

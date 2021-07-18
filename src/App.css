@@ -1,3 +1,16 @@
+body {
+  background: #2A3D45;
+  color: #DDC9B4; 
+}
+
+h2, h3 {
+  color: #C17C74;
+}
+
+button {
+  background: #C17C74;
+}
+
 .App {
   text-align: center;
 }
